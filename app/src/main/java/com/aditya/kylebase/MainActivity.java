@@ -15,6 +15,10 @@ import org.w3c.dom.Text;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
+    /*
+    Spacial Orientation v:1.0.1, Magnetic and Acc Sensor and Mean Deviation outlier
+     */
+
     TextView textView;
     Button calibrateBtn;
     TextView readingTxt;
