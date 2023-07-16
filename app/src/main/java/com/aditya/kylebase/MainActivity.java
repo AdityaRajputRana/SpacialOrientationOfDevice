@@ -192,7 +192,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     0, magnetometerReading.length);
         }
 
-        updateOrientationAngles();;
+        updateOrientationAngles();
     }
 
     @Override
