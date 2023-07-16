@@ -3,6 +3,7 @@ package com.aditya.kylebase;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -17,7 +18,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     /*
     Spacial Orientation v:1.0.1, Magnetic and Acc Sensor and Mean Deviation outlier
+    and Calibration(Error Removal)
      */
+
+    SharedPreferences preferences;
+    float radDegConvertor = 57.2957795131f;
+    float errorPitch = 0f;
+    float errorRoll = 0f;
 
     TextView textView;
     Button calibrateBtn;
@@ -45,12 +52,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         readingTxt = findViewById(R.id.finalTxt);
 
         getLevel();
+        calibrateBtn.setOnClickListener(view->{
+            errorPitch = mean[1]*radDegConvertor;
+            errorRoll = mean[2]*radDegConvertor;
+
+            preferences.edit().putFloat("errorPitch", errorPitch)
+                    .putFloat("errorRoll", errorRoll)
+                    .commit();
+        });
     }
 
     private void getLevel() {
+        preferences = this.getSharedPreferences("KYLE_SENSOR_ERROR_DB_X84", MODE_PRIVATE);
+        errorRoll = preferences.getFloat("errorRoll", 0f);
+        errorPitch = preferences.getFloat("errorPitch", 0f);
         textView.setText("Getting Level");
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-
     }
 
     // the device's accelerometer and magnetometer.
@@ -66,9 +83,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // "orientationAngles" now has up-to-date information.
 
 
-        textView.setText("Azimuth Rotation: " + (double) (orientationAngles[0]*57.2957795131)
-        + "\n Pitch Upwards Tilt: " + (double) (orientationAngles[1]*57.2957795131)
-        + "\n Roll Sideways Tilt: " +(double) ( orientationAngles[2]*57.2957795131));
+        textView.setText("Azimuth Rotation: " + (double) (orientationAngles[0]*radDegConvertor)
+        + "\n Pitch Upwards Tilt: " + (double) (orientationAngles[1]*radDegConvertor)
+        + "\n Roll Sideways Tilt: " +(double) ( orientationAngles[2]*radDegConvertor));
 
         saveMeans(orientationAngles);
     }
@@ -88,11 +105,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         numReadings++;
 
-        if (numReadings > 50){
-            if (numReadings > 500){
-                String txt = "Azimuth Rotation: " + (double) (mean[0]*57.2957795131)
-                        + "\n Pitch Upwards Tilt: " + (double) (mean[1]*57.2957795131)
-                        + "\n Roll Sideways Tilt: " +(double) ( mean[2]*57.2957795131);
+        if (numReadings > 75){
+            if (numReadings > 750){
+                String txt = "Azimuth Rotation: " + (double) (mean[0]*radDegConvertor)
+                        + "\n Pitch Upwards Tilt: " + (double) (mean[1]*radDegConvertor-errorPitch)
+                        + "\n Roll Sideways Tilt: " +(double) ( mean[2]*radDegConvertor-errorRoll);
                 readingTxt.setText("Error:\n"+ txt);
                 sensorManager.unregisterListener(this);
             }
@@ -104,12 +121,23 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
             if (inRange){
-                String txt = "Azimuth Rotation: " + (double) (mean[0]*57.2957795131)
-                        + "(+-"+ (deviation[0]*57.2957795131) + ")"
-                        + "\n\n Pitch Upwards Tilt: " + (double) (mean[1]*57.2957795131)
-                        + "(+-"+ (deviation[1]*57.2957795131) + ")"
-                        + "\n\n Roll Sideways Tilt: " +(double) ( mean[2]*57.2957795131)
-                        + "(+-"+ (deviation[2]*57.2957795131) + ")"
+                float pitch = (mean[1]*radDegConvertor-errorPitch);
+                float roll = ( mean[2]*radDegConvertor-errorRoll);
+
+                if (Math.abs(pitch) <= 0.1f){
+                    pitch = 0f;
+                }
+                if (Math.abs(roll) <= 0.1f){
+                    roll = 0f;
+                }
+
+
+                String txt = "Azimuth Rotation: " + (double) (mean[0]*radDegConvertor)
+                        + "(+-"+ (deviation[0]*radDegConvertor) + ")"
+                        + "\n\n Pitch Upwards Tilt: " + pitch
+                        + "(+-"+ (deviation[1]*radDegConvertor) + ")"
+                        + "\n\n Roll Sideways Tilt: " + roll
+                        + "(+-"+ (deviation[2]*radDegConvertor) + ")"
                         + "\n\nNum Counts = " + numReadings;
 
                 readingTxt.setText("Final Values:\n"+ txt);
